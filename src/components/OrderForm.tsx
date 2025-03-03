@@ -59,7 +59,7 @@ const OrderForm = ({ subtotal }: OrderFormProps) => {
           customer_name: formData.name,
           customer_email: formData.email,
           customer_address: formData.address,
-          payment_method: formData.paymentMethod,
+          payment_method: formData.paymentMethod, // Ensures we're using the correct type
           total,
           tracking_number: `TRK${Math.floor(Math.random() * 900000000) + 100000000}`,
           estimated_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]

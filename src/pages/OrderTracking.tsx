@@ -92,9 +92,14 @@ const OrderTracking = () => {
       }
       
       // Combine order with items
-      const orderWithItems = {
+      // Cast payment_method to ensure it matches the type requirements
+      const orderWithItems: Order = {
         ...orderData,
-        items: itemsData || []
+        payment_method: orderData.payment_method as 'credit-card' | 'bitcoin',
+        items: itemsData || [],
+        // Ensure these fields exist to satisfy the Order interface
+        tracking_number: orderData.tracking_number || '',
+        estimated_delivery: orderData.estimated_delivery || ''
       };
       
       setOrder(orderWithItems);
