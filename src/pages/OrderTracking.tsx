@@ -92,10 +92,11 @@ const OrderTracking = () => {
       }
       
       // Combine order with items
-      // Cast payment_method to ensure it matches the type requirements
+      // Cast payment_method and status to ensure they match the type requirements
       const orderWithItems: Order = {
         ...orderData,
         payment_method: orderData.payment_method as 'credit-card' | 'bitcoin',
+        status: orderData.status as 'processing' | 'shipped' | 'delivered',
         items: itemsData || [],
         // Ensure these fields exist to satisfy the Order interface
         tracking_number: orderData.tracking_number || '',
