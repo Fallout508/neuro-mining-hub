@@ -1,4 +1,3 @@
-
 import { ShoppingCart } from "lucide-react";
 
 export interface Product {
@@ -27,6 +26,10 @@ export interface Order {
   total: number;
   estimatedDelivery?: string;
   trackingNumber?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  paymentMethod?: 'credit-card' | 'bitcoin';
 }
 
 // Mock products data
@@ -213,4 +216,70 @@ export const getCartTotal = (): number => {
     const product = products.find(p => p.id === item.productId);
     return total + (product ? product.price * item.quantity : 0);
   }, 0);
+};
+
+// Function to create a new order
+export const createOrder = (
+  cartItems: CartItem[], 
+  customerInfo: { 
+    name: string;
+    email: string;
+    address: string;
+    paymentMethod: 'credit-card' | 'bitcoin';
+  }
+): Order => {
+  // Generate a random order ID
+  const orderId = `ORD-${Math.floor(Math.random() * 9000) + 1000}-${Math.floor(Math.random() * 9000) + 1000}`;
+  
+  // Calculate total
+  const total = cartItems.reduce((sum, item) => {
+    const product = products.find(p => p.id === item.productId);
+    return sum + (product ? product.price * item.quantity : 0);
+  }, 0);
+  
+  // Create estimated delivery date (7 days from now)
+  const today = new Date();
+  const estimatedDelivery = new Date(today.setDate(today.getDate() + 7)).toISOString().split('T')[0];
+  
+  // Generate a random tracking number
+  const trackingNumber = `TRK${Math.floor(Math.random() * 900000000) + 100000000}`;
+  
+  // Create new order
+  const newOrder: Order = {
+    id: orderId,
+    items: [...cartItems],
+    status: 'processing',
+    date: new Date().toISOString().split('T')[0],
+    total,
+    estimatedDelivery,
+    trackingNumber,
+    customerName: customerInfo.name,
+    customerEmail: customerInfo.email,
+    customerAddress: customerInfo.address,
+    paymentMethod: customerInfo.paymentMethod
+  };
+  
+  // Store order in local storage
+  const existingOrders = localStorage.getItem('orders');
+  const allOrders = existingOrders ? JSON.parse(existingOrders) : [];
+  allOrders.push(newOrder);
+  localStorage.setItem('orders', JSON.stringify(allOrders));
+  
+  return newOrder;
+};
+
+// Function to get orders
+export const getOrders = (): Order[] => {
+  const storedOrders = localStorage.getItem('orders');
+  if (storedOrders) {
+    return JSON.parse(storedOrders);
+  }
+  // Return mock orders if no orders in localStorage
+  return orders;
+};
+
+// Function to get order by ID
+export const getOrderById = (orderId: string): Order | undefined => {
+  const storedOrders = getOrders();
+  return storedOrders.find(order => order.id === orderId);
 };
