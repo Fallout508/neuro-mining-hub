@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { createOrder, clearCart, getCartItems } from '@/lib/data';
+import { clearCart, getCartItems } from '@/lib/data';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrderFormProps {
   subtotal: number;
@@ -34,7 +35,7 @@ const OrderForm = ({ subtotal }: OrderFormProps) => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
@@ -48,8 +49,46 @@ const OrderForm = ({ subtotal }: OrderFormProps) => {
         return;
       }
       
-      // Create order
-      const order = createOrder(cartItems, formData);
+      // Calculate total with tax
+      const total = subtotal * 1.08;
+
+      // Create order in Supabase
+      const { data: order, error: orderError } = await supabase
+        .from('customer_orders')
+        .insert({
+          customer_name: formData.name,
+          customer_email: formData.email,
+          customer_address: formData.address,
+          payment_method: formData.paymentMethod,
+          total,
+          tracking_number: `TRK${Math.floor(Math.random() * 900000000) + 100000000}`,
+          estimated_delivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        })
+        .select('id')
+        .single();
+
+      if (orderError) {
+        throw new Error(orderError.message);
+      }
+
+      // Insert order items
+      const orderItems = cartItems.map(item => {
+        const product = getProductDetails(item.productId);
+        return {
+          order_id: order.id,
+          product_id: item.productId,
+          quantity: item.quantity,
+          price: product?.price || 0
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        throw new Error(itemsError.message);
+      }
       
       // Clear cart
       clearCart();
@@ -68,6 +107,12 @@ const OrderForm = ({ subtotal }: OrderFormProps) => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper function to get product details
+  const getProductDetails = (productId: string) => {
+    const { products } = require('@/lib/data');
+    return products.find((p: any) => p.id === productId);
   };
 
   return (

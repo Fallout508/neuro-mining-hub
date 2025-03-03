@@ -1,7 +1,29 @@
 
 import { ClipboardCheck, Package, Truck, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Order } from '@/lib/data';
+
+interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price: number;
+  created_at: string;
+}
+
+interface Order {
+  id: string;
+  created_at: string;
+  customer_name: string;
+  customer_email: string;
+  customer_address: string;
+  payment_method: 'credit-card' | 'bitcoin';
+  total: number;
+  status: 'processing' | 'shipped' | 'delivered';
+  tracking_number: string;
+  estimated_delivery: string;
+  items?: OrderItem[];
+}
 
 interface OrderStatusProps {
   order: Order;
@@ -58,7 +80,7 @@ const OrderStatus = ({ order }: OrderStatusProps) => {
               {/* Date/Time if available */}
               {isPast && (
                 <span className="text-[10px] text-muted-foreground">
-                  {step.key === 'processing' ? order.date : ''}
+                  {step.key === 'processing' ? new Date(order.created_at).toLocaleDateString() : ''}
                 </span>
               )}
             </div>
@@ -70,11 +92,11 @@ const OrderStatus = ({ order }: OrderStatusProps) => {
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-gray-50 p-4 rounded-lg">
           <h4 className="text-sm font-medium text-gray-500 mb-2">Tracking Number</h4>
-          <p className="font-mono text-sm">{order.trackingNumber || 'Not available'}</p>
+          <p className="font-mono text-sm">{order.tracking_number || 'Not available'}</p>
         </div>
         <div className="bg-gray-50 p-4 rounded-lg">
           <h4 className="text-sm font-medium text-gray-500 mb-2">Estimated Delivery</h4>
-          <p className="text-sm">{order.estimatedDelivery || 'Not available'}</p>
+          <p className="text-sm">{order.estimated_delivery || 'Not available'}</p>
         </div>
       </div>
     </div>

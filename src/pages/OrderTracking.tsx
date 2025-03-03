@@ -1,14 +1,38 @@
 
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PackageSearch, ArrowLeft, Box, ClipboardCheck } from 'lucide-react';
+import { PackageSearch, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import OrderStatus from '@/components/OrderStatus';
 import Navbar from '@/components/Navbar';
-import { orders, Order, products } from '@/lib/data';
+import { products } from '@/lib/data';
+import { supabase } from '@/integrations/supabase/client';
+
+interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price: number;
+  created_at: string;
+}
+
+interface Order {
+  id: string;
+  created_at: string;
+  customer_name: string;
+  customer_email: string;
+  customer_address: string;
+  payment_method: 'credit-card' | 'bitcoin';
+  total: number;
+  status: 'processing' | 'shipped' | 'delivered';
+  tracking_number: string;
+  estimated_delivery: string;
+  items?: OrderItem[];
+}
 
 const OrderTracking = () => {
   const location = useLocation();
@@ -30,7 +54,7 @@ const OrderTracking = () => {
   }, [location]);
   
   // Track order
-  const handleTrackOrder = (id: string = orderId) => {
+  const handleTrackOrder = async (id: string = orderId) => {
     if (!id) {
       setError('Please enter an order ID');
       return;
@@ -39,18 +63,47 @@ const OrderTracking = () => {
     setIsLoading(true);
     setError('');
     
-    // Simulate API call
-    setTimeout(() => {
-      const foundOrder = orders.find(o => o.id === id);
+    try {
+      // Fetch order from Supabase
+      const { data: orderData, error: orderError } = await supabase
+        .from('customer_orders')
+        .select('*')
+        .eq('id', id)
+        .single();
       
-      if (foundOrder) {
-        setOrder(foundOrder);
-      } else {
-        setError('Order not found. Please check the order ID and try again.');
+      if (orderError) {
+        throw new Error(orderError.message);
       }
       
+      if (!orderData) {
+        setError('Order not found. Please check the order ID and try again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Fetch order items
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', id);
+      
+      if (itemsError) {
+        throw new Error(itemsError.message);
+      }
+      
+      // Combine order with items
+      const orderWithItems = {
+        ...orderData,
+        items: itemsData || []
+      };
+      
+      setOrder(orderWithItems);
+    } catch (err) {
+      console.error('Error fetching order:', err);
+      setError('Error fetching order details. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -89,7 +142,7 @@ const OrderTracking = () => {
                   Order Tracking
                 </CardTitle>
                 <CardDescription className="text-center">
-                  Enter your order ID (e.g., ORD-1234-5678)
+                  Enter your order ID
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -119,7 +172,7 @@ const OrderTracking = () => {
                 <CardHeader>
                   <CardTitle>Order #{order.id}</CardTitle>
                   <CardDescription>
-                    Placed on {order.date}
+                    Placed on {new Date(order.created_at).toLocaleDateString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -132,12 +185,12 @@ const OrderTracking = () => {
                   <div>
                     <h3 className="font-semibold mb-4">Order Items</h3>
                     <div className="space-y-4">
-                      {order.items.map(item => {
-                        const product = products.find(p => p.id === item.productId);
+                      {order.items?.map(item => {
+                        const product = products.find(p => p.id === item.product_id);
                         if (!product) return null;
                         
                         return (
-                          <div key={item.productId} className="flex items-center gap-4">
+                          <div key={item.id} className="flex items-center gap-4">
                             <div className="h-16 w-16 bg-gray-100 rounded-md overflow-hidden">
                               <img 
                                 src={product.image} 
@@ -152,7 +205,7 @@ const OrderTracking = () => {
                               </p>
                             </div>
                             <div className="font-medium">
-                              ${(product.price * item.quantity).toLocaleString()}
+                              ${(item.price * item.quantity).toLocaleString()}
                             </div>
                           </div>
                         );
@@ -166,7 +219,7 @@ const OrderTracking = () => {
                       <div className="w-full max-w-xs space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Subtotal</span>
-                          <span>${order.total.toLocaleString()}</span>
+                          <span>${(order.total / 1.08).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Shipping</span>
@@ -174,12 +227,12 @@ const OrderTracking = () => {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Tax</span>
-                          <span>${(order.total * 0.08).toLocaleString()}</span>
+                          <span>${(order.total - (order.total / 1.08)).toLocaleString()}</span>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-medium">
                           <span>Total</span>
-                          <span>${(order.total * 1.08).toLocaleString()}</span>
+                          <span>${order.total.toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
